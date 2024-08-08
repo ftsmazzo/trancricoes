@@ -25,14 +25,14 @@ openai.api_key = st.secrets["openai"]["api_key"]
 
 def transcreve_audio(caminho_audio, prompt):
     with open(caminho_audio, 'rb') as arquivo_audio:
-        transcricao = openai.Audio.transcribe(
+        response = openai.Audio.transcriptions.create(
             model='whisper-1',
             language='pt',
             response_format='text',
             file=arquivo_audio,
             prompt=prompt,
         )
-        return transcricao['text']
+        return response['text']
 
 if 'transcricao_mic' not in st.session_state:
     st.session_state['transcricao_mic'] = ''
