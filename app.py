@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import queue
 import time
@@ -21,7 +22,7 @@ ARQUIVO_VIDEO_TEMP = PASTA_TEMP / 'video.mp4'
 ARQUIVO_MIC_TEMP = PASTA_TEMP / 'mic.mp3'
 
 # Initialize OpenAI API client
-openai.api_key = st.secrets["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"]
+openai.api_key = st.secrets["openai"]["api_key"]
 
 def transcreve_audio(caminho_audio, prompt):
     with open(caminho_audio, 'rb') as arquivo_audio:
@@ -65,7 +66,7 @@ def transcreve_tab_mic():
     if not webrtc_ctx.state.playing:
         st.write(st.session_state['transcricao_mic'])
         return
-    
+
     container = st.empty()
     container.markdown('Comece a falar...')
     chunck_audio = pydub.AudioSegment.empty()
