@@ -9,35 +9,37 @@ import openai
 import pydub
 from moviepy.editor import VideoFileClip
 from dotenv import load_dotenv, find_dotenv
+
+# Load environment variables
 _ = load_dotenv(find_dotenv())
 
-
+# Constants
 PASTA_TEMP = Path(__file__).parent / 'temp'
 PASTA_TEMP.mkdir(exist_ok=True)
 ARQUIVO_AUDIO_TEMP = PASTA_TEMP / 'audio.mp3'
 ARQUIVO_VIDEO_TEMP = PASTA_TEMP / 'video.mp4'
 ARQUIVO_MIC_TEMP = PASTA_TEMP / 'mic.mp3'
 
-client = openai.OpenAI()
+# Initialize OpenAI API client
+openai.api_key = st.secrets["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"]
 
 def transcreve_audio(caminho_audio, prompt):
     with open(caminho_audio, 'rb') as arquivo_audio:
-        transcricao = client.audio.transcriptions.create(
+        transcricao = openai.Audio.transcribe(
             model='whisper-1',
             language='pt',
             response_format='text',
             file=arquivo_audio,
             prompt=prompt,
         )
-        return transcricao
+        return transcricao['text']
 
-if not 'transcricao_mic' in st.session_state:
+if 'transcricao_mic' not in st.session_state:
     st.session_state['transcricao_mic'] = ''
 
 @st.cache_data
 def get_ice_servers():
     return [{'urls': ['stun:stun.l.google.com:19302']}]
-
 
 def adiciona_chunck_de_audio(frames_de_audio, chunck_audio):
     for frame in frames_de_audio:
@@ -52,14 +54,15 @@ def adiciona_chunck_de_audio(frames_de_audio, chunck_audio):
 
 def transcreve_tab_mic():
     prompt_mic = st.text_input('(opcional) Digite o seu prompt', key='input_mic')
-    webrtx_ctx = webrtc_streamer(
+    webrtc_ctx = webrtc_streamer(
         key='recebe_audio',
         mode=WebRtcMode.SENDONLY,
         audio_receiver_size=1024,
-        media_stream_constraints={'video': False, 'audio':True}
+        media_stream_constraints={'video': False, 'audio': True},
+        iceServers=get_ice_servers()
     )
 
-    if not webrtx_ctx.state.playing:
+    if not webrtc_ctx.state.playing:
         st.write(st.session_state['transcricao_mic'])
         return
     
@@ -69,9 +72,9 @@ def transcreve_tab_mic():
     tempo_ultima_transcricao = time.time()
     st.session_state['transcricao_mic'] = ''
     while True:
-        if webrtx_ctx.audio_receiver:
+        if webrtc_ctx.audio_receiver:
             try:
-                frames_de_audio = webrtx_ctx.audio_receiver.get_frames(timeout=1)
+                frames_de_audio = webrtc_ctx.audio_receiver.get_frames(timeout=1)
             except queue.Empty:
                 time.sleep(0.1)
                 continue
@@ -88,7 +91,6 @@ def transcreve_tab_mic():
         else:
             break
 
-
 # TRANSCREVE VIDEO =====================================
 def _salva_audio_do_video(video_bytes):
     with open(ARQUIVO_VIDEO_TEMP, mode='wb') as video_f:
@@ -99,7 +101,7 @@ def _salva_audio_do_video(video_bytes):
 def transcreve_tab_video():
     prompt_input = st.text_input('(opcional) Digite o seu prompt', key='input_video')
     arquivo_video = st.file_uploader('Adicione um arquivo de vídeo .mp4', type=['mp4'])
-    if not arquivo_video is None:
+    if arquivo_video is not None:
         _salva_audio_do_video(arquivo_video)
         transcricao = transcreve_audio(ARQUIVO_AUDIO_TEMP, prompt_input)
         st.write(transcricao)
@@ -108,14 +110,8 @@ def transcreve_tab_video():
 def transcreve_tab_audio():
     prompt_input = st.text_input('(opcional) Digite o seu prompt', key='input_audio')
     arquivo_audio = st.file_uploader('Adicione um arquivo de áudio .mp3', type=['mp3'])
-    if not arquivo_audio is None:
-        transcricao = client.audio.transcriptions.create(
-            model='whisper-1',
-            language='pt',
-            response_format='text',
-            file=arquivo_audio,
-            prompt=prompt_input
-        )
+    if arquivo_audio is not None:
+        transcricao = transcreve_audio(arquivo_audio, prompt_input)
         st.write(transcricao)
 
 # MAIN =====================================
