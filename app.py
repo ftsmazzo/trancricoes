@@ -1,10 +1,9 @@
-import os
 from pathlib import Path
 import queue
 import time
 
 import streamlit as st
-from streamlit_webrtc import WebRtcMode, webrtc_streamer
+from streamlit_webrtc import WebRtcMode, webrtc_streamer, RTCConfiguration
 
 import openai
 import pydub
@@ -55,12 +54,17 @@ def adiciona_chunck_de_audio(frames_de_audio, chunck_audio):
 
 def transcreve_tab_mic():
     prompt_mic = st.text_input('(opcional) Digite o seu prompt', key='input_mic')
+
+    rtc_configuration = RTCConfiguration({
+        "iceServers": get_ice_servers()
+    })
+
     webrtc_ctx = webrtc_streamer(
         key='recebe_audio',
         mode=WebRtcMode.SENDONLY,
         audio_receiver_size=1024,
         media_stream_constraints={'video': False, 'audio': True},
-        iceServers=get_ice_servers()
+        rtc_configuration=rtc_configuration
     )
 
     if not webrtc_ctx.state.playing:
@@ -84,7 +88,7 @@ def transcreve_tab_mic():
             agora = time.time()
             if len(chunck_audio) > 0 and agora - tempo_ultima_transcricao > 10:
                 tempo_ultima_transcricao = agora
-                chunck_audio.export(ARQUIVO_MIC_TEMP)
+                chunck_audio.export(ARQUIVO_MIC_TEMP, format="mp3")
                 transcricao = transcreve_audio(ARQUIVO_MIC_TEMP, prompt_mic)
                 st.session_state['transcricao_mic'] += transcricao
                 container.write(st.session_state['transcricao_mic'])
